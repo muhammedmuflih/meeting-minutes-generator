@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing Audio - Meeting Minutes Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .processing-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 2rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+        .progress-container {
+            margin: 2rem 0;
+        }
+        .progress {
+            height: 25px;
+            border-radius: 12px;
+            background-color: #e9ecef;
+        }
+        .progress-bar {
+            border-radius: 12px;
+            transition: width 0.5s ease-in-out;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin: 2rem 0;
+            position: relative;
+        }
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: #e9ecef;
+            z-index: 1;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            width: 16%;
+        }
+        .step-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        .step.active .step-icon {
+            background-color: #0d6efd;
+            color: white;
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25);
+        }
+        .step.completed .step-icon {
+            background-color: #198754;
+            color: white;
+            box-shadow: 0 0 0 4px rgba(25, 135, 84, 0.25);
+        }
+        .step-label {
+            font-size: 0.8rem;
+            text-align: center;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        .step.active .step-label {
+            color: #0d6efd;
+            font-weight: 600;
+        }
+        .step.completed .step-label {
+            color: #198754;
+            font-weight: 600;
+        }
+        .step-time {
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+            text-align: center;
+        }
+        .step.active .step-time {
+            color: #0d6efd;
+            font-weight: 500;
+        }
+        .step.completed .step-time {
+            color: #198754;
+            font-weight: 500;
+        }
+        .status-message {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-left: 5px solid #0d6efd;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0d6efd;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .results-button {
+            display: none;
+            margin-top: 1rem;
+        }
+        .error-alert {
+            display: none;
+        }
+        .step-completion {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #198754;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s ease;
+        }
+        .step.completed .step-completion {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .completion-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #198754;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1050;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.5s ease;
+        }
+        .completion-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .time-estimation {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        .time-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+        .time-card:hover {
+            transform: translateY(-3px);
+        }
+        .time-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .time-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-bottom: 0.25rem;
+        }
+        .time-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        .time-card.elapsed .time-icon {
+            color: #0d6efd;
+        }
+        .time-card.remaining .time-icon {
+            color: #fd7e14;
+        }
+        .time-card.completion .time-icon {
+            color: #198754;
+        }
+        .time-card.current-step .time-icon {
+            color: #dc3545;
+        }
+        .accuracy-note {
+            font-size: 0.75rem;
+            color: #6c757d;
+            font-style: italic;
+            margin-top: 0.5rem;
+        }
+        .partial-results-container {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-left: 5px solid #20c997;
+            display: none;
+        }
+        .partial-results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .partial-results-content {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .partial-result-section {
+            margin-bottom: 1rem;
+        }
+        .partial-result-section h6 {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .partial-result-text {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .refresh-partial {
+            cursor: pointer;
+            color: #0d6efd;
+            font-size: 0.8rem;
+        }
+        .refresh-partial:hover {
+            color: #0a58ca;
+        }
+        .step-details {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-left: 5px solid #6f42c1;
+        }
+        .step-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .step-details-content {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .step-detail-item {
+            width: 48%;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .step-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .step-detail-title {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+        .step-detail-time {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .step-detail-status {
+            font-size: 0.8rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .status-pending {
+            background-color: #e9ecef;
+            color: #6c757d;
+        }
+        .status-active {
+            background-color: #cff4fc;
+            color: #055160;
+        }
+        .status-completed {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="processing-container">
+                    <div class="text-center mb-4">
+                        <h1 class="display-5 fw-bold text-primary">
+                            <i class="fas fa-file-audio me-2"></i>Processing Audio
+                        </h1>
+                        <p class="lead">We're analyzing your audio file and generating meeting minutes</p>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Processing Progress</span>
+                            <span id="progress-percentage">0%</span>
+                        </div>
+                        <div class="progress">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    <!-- Time Estimation Cards -->
+                    <div class="time-estimation">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="time-card elapsed">
+                                    <div class="time-icon">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div class="time-label">Time Elapsed</div>
+                                    <div class="time-value" id="time-elapsed">00:00</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="time-card remaining">
+                                    <div class="time-icon">
+                                        <i class="fas fa-hourglass-half"></i>
+                                    </div>
+                                    <div class="time-label">Total Time Remaining</div>
+                                    <div class="time-value" id="time-remaining">05:00</div>
+                                    <div class="accuracy-note">Sum of all steps</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="time-card current-step">
+                                    <div class="time-icon">
+                                        <i class="fas fa-tasks"></i>
+                                    </div>
+                                    <div class="time-label">Current Step</div>
+                                    <div class="time-value" id="current-step-time">00:00</div>
+                                    <div class="accuracy-note" id="current-step-name">Initializing</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="time-card completion">
+                                    <div class="time-icon">
+                                        <i class="fas fa-flag-checkered"></i>
+                                    </div>
+                                    <div class="time-label">Expected Completion</div>
+                                    <div class="time-value" id="time-completion">--:--</div>
+                                    <div class="accuracy-note">Estimated time</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step Indicator with Time Estimates -->
+                    <div class="step-indicator">
+                        <div class="step" id="step-1">
+                            <div class="step-icon">
+                                <i class="fas fa-upload"></i>
+                                <div class="step-completion">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="step-label">Upload</div>
+                            <div class="step-time" id="step-1-time">~5 seconds</div>
+                        </div>
+                        <div class="step" id="step-2">
+                            <div class="step-icon">
+                                <i class="fas fa-exchange-alt"></i>
+                                <div class="step-completion">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="step-label">Convert</div>
+                            <div class="step-time" id="step-2-time">~15 seconds</div>
+                        </div>
+                        <div class="step" id="step-3">
+                            <div class="step-icon">
+                                <i class="fas fa-microphone"></i>
+                                <div class="step-completion">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="step-label">Transcribe</div>
+                            <div class="step-time" id="step-3-time">~3 minutes</div>
+                        </div>
+                        <div class="step" id="step-4">
+                            <div class="step-icon">
+                                <i class="fas fa-users"></i>
+                                <div class="step-completion">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="step-label">Process</div>
+                            <div class="step-time" id="step-4-time">~30 seconds</div>
+                        </div>
+                        <div class="step" id="step-5">
+                            <div class="step-icon">
+                                <i class="fas fa-file-alt"></i>
+                                <div class="step-completion">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="step-label">Summarize</div>
+                            <div class="step-time" id="step-5-time">~45 seconds</div>
+                        </div>
+                        <div class="step" id="step-6">
+                            <div class="step-icon">
+                                <i class="fas fa-download"></i>
+                                <div class="step-completion">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="step-label">Export</div>
+                            <div class="step-time" id="step-6-time">~25 seconds</div>
+                        </div>
+                    </div>
+
+                    <!-- Step Details -->
+                    <div class="step-details">
+                        <div class="step-details-header">
+                            <h5><i class="fas fa-info-circle me-2"></i>Step Details</h5>
+                        </div>
+                        <div class="step-details-content">
+                            <div class="step-detail-item">
+                                <div class="step-detail-header">
+                                    <div class="step-detail-title">Upload</div>
+                                    <div class="step-detail-time">~5 seconds</div>
+                                </div>
+                                <div class="step-detail-status status-pending" id="status-upload">Pending</div>
+                            </div>
+                            <div class="step-detail-item">
+                                <div class="step-detail-header">
+                                    <div class="step-detail-title">Convert Audio</div>
+                                    <div class="step-detail-time">~15 seconds</div>
+                                </div>
+                                <div class="step-detail-status status-pending" id="status-convert">Pending</div>
+                            </div>
+                            <div class="step-detail-item">
+                                <div class="step-detail-header">
+                                    <div class="step-detail-title">Transcribe Audio</div>
+                                    <div class="step-detail-time">~3 minutes</div>
+                                </div>
+                                <div class="step-detail-status status-pending" id="status-transcribe">Pending</div>
+                            </div>
+                            <div class="step-detail-item">
+                                <div class="step-detail-header">
+                                    <div class="step-detail-title">Process Transcript</div>
+                                    <div class="step-detail-time">~30 seconds</div>
+                                </div>
+                                <div class="step-detail-status status-pending" id="status-process">Pending</div>
+                            </div>
+                            <div class="step-detail-item">
+                                <div class="step-detail-header">
+                                    <div class="step-detail-title">Generate Summary</div>
+                                    <div class="step-detail-time">~45 seconds</div>
+                                </div>
+                                <div class="step-detail-status status-pending" id="status-summarize">Pending</div>
+                            </div>
+                            <div class="step-detail-item">
+                                <div class="step-detail-header">
+                                    <div class="step-detail-title">Export Results</div>
+                                    <div class="step-detail-time">~25 seconds</div>
+                                </div>
+                                <div class="step-detail-status status-pending" id="status-export">Pending</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Message -->
+                    <div class="status-message">
+                        <div class="d-flex align-items-center">
+                            <div class="loading-spinner"></div>
+                            <div>
+                                <h5 id="status-title">Initializing Processing</h5>
+                                <p id="status-message" class="mb-0">Preparing to process your audio file...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Partial Results Container -->
+                    <div id="partial-results" class="partial-results-container">
+                        <div class="partial-results-header">
+                            <h5><i class="fas fa-eye me-2"></i>Partial Results Preview</h5>
+                            <span class="refresh-partial" id="refresh-partial">
+                                <i class="fas fa-sync-alt me-1"></i>Refresh
+                            </span>
+                        </div>
+                        <div class="partial-results-content">
+                            <div class="partial-result-section">
+                                <h6>Summary</h6>
+                                <div id="partial-summary" class="partial-result-text">Processing...</div>
+                            </div>
+                            <div class="partial-result-section">
+                                <h6>Decisions</h6>
+                                <div id="partial-decisions" class="partial-result-text">Processing...</div>
+                            </div>
+                            <div class="partial-result-section">
+                                <h6>Action Items</h6>
+                                <div id="partial-action-items" class="partial-result-text">Processing...</div>
+                            </div>
+                            <div class="partial-result-section">
+                                <h6>Deadlines</h6>
+                                <div id="partial-deadlines" class="partial-result-text">Processing...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error Alert -->
+                    <div id="error-alert" class="alert alert-danger error-alert" role="alert">
+                        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Processing Error</h4>
+                        <p id="error-message">An unexpected error occurred during processing.</p>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <a href="/" class="btn btn-outline-danger">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Upload
+                            </a>
+                            <button id="retry-button" class="btn btn-danger">
+                                <i class="fas fa-redo me-1"></i>Retry Processing
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Results Button -->
+                    <div class="text-center">
+                        <a id="results-button" href="#" class="btn btn-success btn-lg results-button">
+                            <i class="fas fa-chart-bar me-2"></i>View Results
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Messages -->
+    <div id="upload-complete" class="completion-message">
+        <i class="fas fa-check-circle me-2"></i>Upload Complete!
+    </div>
+    <div id="convert-complete" class="completion-message">
+        <i class="fas fa-check-circle me-2"></i>Conversion Complete!
+    </div>
+    <div id="transcribe-complete" class="completion-message">
+        <i class="fas fa-check-circle me-2"></i>Transcription Complete!
+    </div>
+    <div id="process-complete" class="completion-message">
+        <i class="fas fa-check-circle me-2"></i>Processing Complete!
+    </div>
+    <div id="summarize-complete" class="completion-message">
+        <i class="fas fa-check-circle me-2"></i>Summarization Complete!
+    </div>
+    <div id="export-complete" class="completion-message">
+        <i class="fas fa-check-circle me-2"></i>Export Complete!
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get job ID from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const jobId = urlParams.get('job_id');
+        
+        // Elements
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const statusTitle = document.getElementById('status-title');
+        const statusMessage = document.getElementById('status-message');
+        const resultsButton = document.getElementById('results-button');
+        const errorAlert = document.getElementById('error-alert');
+        const errorMessage = document.getElementById('error-message');
+        const retryButton = document.getElementById('retry-button');
+        
+        // Time estimation elements
+        const timeElapsed = document.getElementById('time-elapsed');
+        const timeRemaining = document.getElementById('time-remaining');
+        const timeCompletion = document.getElementById('time-completion');
+        const currentStepTime = document.getElementById('current-step-time');
+        const currentStepName = document.getElementById('current-step-name');
+        
+        // Step status elements
+        const statusUpload = document.getElementById('status-upload');
+        const statusConvert = document.getElementById('status-convert');
+        const statusTranscribe = document.getElementById('status-transcribe');
+        const statusProcess = document.getElementById('status-process');
+        const statusSummarize = document.getElementById('status-summarize');
+        const statusExport = document.getElementById('status-export');
+        
+        // Partial results elements
+        const partialResultsContainer = document.getElementById('partial-results');
+        const partialSummary = document.getElementById('partial-summary');
+        const partialDecisions = document.getElementById('partial-decisions');
+        const partialActionItems = document.getElementById('partial-action-items');
+        const partialDeadlines = document.getElementById('partial-deadlines');
+        const refreshPartial = document.getElementById('refresh-partial');
+        
+        // Completion message elements
+        const uploadComplete = document.getElementById('upload-complete');
+        const convertComplete = document.getElementById('convert-complete');
+        const transcribeComplete = document.getElementById('transcribe-complete');
+        const processComplete = document.getElementById('process-complete');
+        const summarizeComplete = document.getElementById('summarize-complete');
+        const exportComplete = document.getElementById('export-complete');
+        
+        // Track start time
+        const startTime = new Date();
+        
+        // Step progress tracking
+        let currentProgress = 0;
+        let currentStep = 1;
+        let stepStartTime = new Date();
+        let lastPartialResultsFetch = 0;
+        let processingCompleted = false;
+        let timeUpdateInterval;
+        let stepTimerInterval;
+        
+        // Step timing estimates (in seconds)
+        const stepEstimates = {
+            1: { name: 'Upload', time: 5 },           // Upload (5 seconds)
+            2: { name: 'Convert', time: 15 },         // Convert (15 seconds)
+            3: { name: 'Transcribe', time: 180 },     // Transcribe (3 minutes)
+            4: { name: 'Process', time: 30 },         // Process (30 seconds)
+            5: { name: 'Summarize', time: 45 },       // Summarize (45 seconds)
+            6: { name: 'Export', time: 25 }           // Export (25 seconds)
+        };
+        
+        // Calculate total processing time
+        const totalProcessingTime = Object.values(stepEstimates).reduce((sum, step) => sum + step.time, 0);
+        
+        // Format time as MM:SS
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // Format time as HH:MM AM/PM
+        function formatTimeAMPM(date) {
+            let hours = date.getHours();
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            return `${hours}:${minutes} ${ampm}`;
+        }
+        
+        // Calculate remaining time for all steps
+        function calculateTotalRemainingTime(currentStep) {
+            let remainingTime = 0;
+            
+            // Add time for current step
+            if (currentStep <= 6) {
+                remainingTime += stepEstimates[currentStep].time;
+            }
+            
+            // Add time for remaining steps
+            for (let step = currentStep + 1; step <= 6; step++) {
+                remainingTime += stepEstimates[step].time;
+            }
+            
+            return remainingTime;
+        }
+        
+        // Update time displays
+        function updateTimeDisplays() {
+            const now = new Date();
+            const elapsedSeconds = Math.floor((now - startTime) / 1000);
+            
+            // Update elapsed time
+            timeElapsed.textContent = formatTime(elapsedSeconds);
+            
+            // Calculate and update total remaining time
+            const totalRemainingSeconds = calculateTotalRemainingTime(currentStep);
+            timeRemaining.textContent = formatTime(totalRemainingSeconds);
+            
+            // Calculate and update completion time
+            if (totalRemainingSeconds > 0) {
+                const completionTime = new Date(now.getTime() + totalRemainingSeconds * 1000);
+                timeCompletion.textContent = formatTimeAMPM(completionTime);
+            } else {
+                timeCompletion.textContent = "Complete!";
+            }
+            
+            // Update current step time
+            if (currentStep <= 6) {
+                const stepElapsedSeconds = Math.floor((now - stepStartTime) / 1000);
+                const stepRemainingSeconds = Math.max(0, stepEstimates[currentStep].time - stepElapsedSeconds);
+                currentStepTime.textContent = formatTime(stepRemainingSeconds);
+                currentStepName.textContent = stepEstimates[currentStep].name;
+            }
+        }
+        
+        // Start time update interval
+        function startTimeUpdates() {
+            timeUpdateInterval = setInterval(updateTimeDisplays, 1000);
+        }
+        
+        // Show completion notification
+        function showCompletionNotification(elementId) {
+            const element = document.getElementById(elementId);
+            element.classList.add('show');
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                element.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Update step status
+        function updateStepStatus(step, status) {
+            const statusElements = {
+                1: statusUpload,
+                2: statusConvert,
+                3: statusTranscribe,
+                4: statusProcess,
+                5: statusSummarize,
+                6: statusExport
+            };
+            
+            // Reset all step statuses
+            Object.values(statusElements).forEach(el => {
+                el.className = 'step-detail-status status-pending';
+                el.textContent = 'Pending';
+            });
+            
+            // Update completed steps
+            for (let i = 1; i < step; i++) {
+                if (statusElements[i]) {
+                    statusElements[i].className = 'step-detail-status status-completed';
+                    statusElements[i].textContent = 'Completed';
+                }
+            }
+            
+            // Update current step
+            if (step <= 6 && statusElements[step]) {
+                statusElements[step].className = `step-detail-status status-${status}`;
+                statusElements[step].textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            }
+        }
+        
+        // Update progress
+        function updateProgress(progress, step, status) {
+            // If step changed, update step start time
+            if (step !== currentStep) {
+                stepStartTime = new Date();
+                currentStep = step;
+                updateStepStatus(step, 'active');
+            }
+            
+            // Update current progress
+            currentProgress = progress;
+            
+            // Update progress bar
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+            progressPercentage.textContent = `${progress}%`;
+            
+            // Update status message
+            statusTitle.textContent = status.title;
+            statusMessage.textContent = status.message;
+            
+            // Update steps
+            document.querySelectorAll('.step').forEach((stepEl, index) => {
+                const stepNumber = index + 1;
+                if (stepNumber < step) {
+                    stepEl.classList.add('completed');
+                    stepEl.classList.remove('active');
+                } else if (stepNumber === step) {
+                    stepEl.classList.add('active');
+                    stepEl.classList.remove('completed');
+                } else {
+                    stepEl.classList.remove('active', 'completed');
+                }
+            });
+            
+            // Show completion notification for completed steps
+            if (step > 1) {
+                showCompletionNotification('upload-complete');
+            }
+            if (step > 2) {
+                showCompletionNotification('convert-complete');
+            }
+            if (step > 3) {
+                showCompletionNotification('transcribe-complete');
+            }
+            if (step > 4) {
+                showCompletionNotification('process-complete');
+            }
+            if (step > 5) {
+                showCompletionNotification('summarize-complete');
+            }
+            
+            // Show partial results when we reach the processing step
+            if (step >= 4 && !processingCompleted) {
+                partialResultsContainer.style.display = 'block';
+                fetchPartialResults();
+            }
+            
+            // Show results button when complete
+            if (progress === 100) {
+                processingCompleted = true;
+                updateStepStatus(6, 'completed');
+                
+                setTimeout(() => {
+                    resultsButton.style.display = 'inline-block';
+                    statusTitle.textContent = 'Processing Complete!';
+                    statusMessage.textContent = 'Your meeting minutes are ready to view.';
+                    showCompletionNotification('export-complete');
+                    
+                    // Clear time update interval
+                    if (timeUpdateInterval) {
+                        clearInterval(timeUpdateInterval);
+                    }
+                }, 1000);
+            }
+        }
+        
+        // Fetch partial results
+        function fetchPartialResults() {
+            if (processingCompleted) return;
+            
+            const now = Date.now();
+            // Only fetch every 5 seconds to avoid excessive requests
+            if (now - lastPartialResultsFetch < 5000) return;
+            
+            lastPartialResultsFetch = now;
+            
+            // Show refresh animation
+            refreshPartial.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Refreshing...';
+            
+            fetch(`/partial_results/${jobId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status !== 'not_found') {
+                        // Update partial results
+                        if (data.summary) {
+                            partialSummary.textContent = data.summary.length > 200 
+                                ? data.summary.substring(0, 200) + '...' 
+                                : data.summary;
+                        }
+                        
+                        if (data.decisions) {
+                            partialDecisions.textContent = data.decisions.length > 200 
+                                ? data.decisions.substring(0, 200) + '...' 
+                                : data.decisions;
+                        }
+                        
+                        if (data.action_items) {
+                            partialActionItems.textContent = data.action_items.length > 200 
+                                ? data.action_items.substring(0, 200) + '...' 
+                                : data.action_items;
+                        }
+                        
+                        if (data.deadlines) {
+                            partialDeadlines.textContent = data.deadlines.length > 200 
+                                ? data.deadlines.substring(0, 200) + '...' 
+                                : data.deadlines;
+                        }
+                    }
+                    
+                    // Reset refresh button
+                    refreshPartial.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh';
+                })
+                .catch(error => {
+                    console.error('Error fetching partial results:', error);
+                    // Reset refresh button
+                    refreshPartial.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh';
+                });
+        }
+        
+        // Check for job completion
+        function checkJobStatus() {
+            if (jobId) {
+                fetch(`/job_status/${jobId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'completed') {
+                            resultsButton.href = data.results_url;
+                            updateProgress(100, 6, { 
+                                title: 'Processing Complete!', 
+                                message: 'Your meeting minutes are ready to view.' 
+                            });
+                        } else if (data.status === 'error') {
+                            showError(data.message);
+                        } else {
+                            // Update progress based on job status
+                            if (data.progress) {
+                                const step = Math.ceil(data.progress / 20) + 1;
+                                const statusMessages = [
+                                    { title: 'File Uploaded', message: 'Your audio file has been successfully uploaded and verified.' },
+                                    { title: 'Converting Audio', message: 'Converting your audio file to optimal format for processing...' },
+                                    { title: 'Transcribing Audio', message: 'Converting speech to text using advanced AI models...' },
+                                    { title: 'Processing Transcript', message: 'Identifying speakers and analyzing conversation structure...' },
+                                    { title: 'Generating Summary', message: 'Creating meeting minutes with key decisions and action items...' },
+                                    { title: 'Exporting Results', message: 'Finalizing documents and preparing download links...' }
+                                ];
+                                
+                                const statusIndex = Math.min(step - 1, statusMessages.length - 1);
+                                updateProgress(data.progress, step, statusMessages[statusIndex]);
+                            }
+                            
+                            // Continue checking status
+                            setTimeout(checkJobStatus, 2000);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking job status:', error);
+                        // Retry after 5 seconds on error
+                        setTimeout(checkJobStatus, 5000);
+                    });
+            } else {
+                // Fallback: simulate progress if no job ID (for testing)
+                simulateProgress();
+            }
+        }
+        
+        // Fallback simulation function (only used if no job ID)
+        function simulateProgress() {
+            let simulatedProgress = 0;
+            const simulateInterval = setInterval(() => {
+                simulatedProgress += 5;
+                if (simulatedProgress > 100) {
+                    simulatedProgress = 100;
+                    clearInterval(simulateInterval);
+                }
+                
+                const step = Math.ceil(simulatedProgress / 20) + 1;
+                const statusMessages = [
+                    { title: 'File Uploaded', message: 'Your audio file has been successfully uploaded and verified.' },
+                    { title: 'Converting Audio', message: 'Converting your audio file to optimal format for processing...' },
+                    { title: 'Transcribing Audio', message: 'Converting speech to text using advanced AI models...' },
+                    { title: 'Processing Transcript', message: 'Identifying speakers and analyzing conversation structure...' },
+                    { title: 'Generating Summary', message: 'Creating meeting minutes with key decisions and action items...' },
+                    { title: 'Exporting Results', message: 'Finalizing documents and preparing download links...' }
+                ];
+                
+                const statusIndex = Math.min(step - 1, statusMessages.length - 1);
+                updateProgress(simulatedProgress, step, statusMessages[statusIndex]);
+                
+                if (simulatedProgress === 100) {
+                    resultsButton.href = '/results';
+                    resultsButton.style.display = 'inline-block';
+                }
+            }, 1000);
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message || 'An unexpected error occurred during processing.';
+            errorAlert.style.display = 'block';
+            document.querySelector('.status-message').style.display = 'none';
+            
+            // Clear time update interval on error
+            if (timeUpdateInterval) {
+                clearInterval(timeUpdateInterval);
+            }
+        }
+        
+        // Event listeners
+        refreshPartial.addEventListener('click', fetchPartialResults);
+        
+        retryButton.addEventListener('click', () => {
+            // Retry processing by redirecting to the index page
+            window.location.href = '/';
+        });
+        
+        // Set initial completion time
+        const initialCompletionTime = new Date(startTime.getTime() + totalProcessingTime * 1000);
+        timeCompletion.textContent = formatTimeAMPM(initialCompletionTime);
+        
+        // Start time updates
+        startTimeUpdates();
+        
+        // Start checking job status
+        checkJobStatus();
+        
+        // Initial time update
+        updateTimeDisplays();
+    </script>
+</body>
+</html>

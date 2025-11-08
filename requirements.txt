@@ -1,0 +1,25 @@
+flask # or streamlit
+faster-whisper
+pydub
+pyannote.audio
+transformers
+torch # required by transformers and faster-whisper
+sentencepiece # required by transformers
+spacy
+en_core_web_sm # Install via: python -m spacy download en_core_web_sm
+python-docx
+reportlab # or fpdf2
+flask
+torch
+torchaudio
+transformers
+pyannote.audio
+pydub
+faster-whisper
+spacy
+scikit-learn
+librosa
+docx
+reportlab
+flask-socketio==5.3.6
+python-socketio==5.10.0

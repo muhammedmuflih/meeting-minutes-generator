@@ -1,0 +1,39 @@
+# Create .gitignore to exclude generated files
+@"
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Project generated files
+outputs/
+temp_audio/
+.meeting_transcripts/
+app.log
+
+# Media files
+*.mp4
+*.wav
+*.mp3
+*.pdf
+
+# API keys and environment variables
+.env
+.secrets
+config.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+"@ | Out-File -FilePath .gitignore -Encoding UTF8
