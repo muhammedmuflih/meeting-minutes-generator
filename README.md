@@ -59,10 +59,6 @@ python app.py
 ```
 By default the Flask dev server will run on http://0.0.0.0:5000 with debug enabled (see `app.py`).
 
-## Running in production
-For production use, run with a WSGI server such as gunicorn:
-```bash
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
 ```
 Make sure to set a secure secret key and use production-ready configuration.
 
