@@ -49,8 +49,5 @@ We welcome contributions! Please check out the [CONTRIBUTING.md](CONTRIBUTING.md
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.  
 
-## 👥 Author
-- MuHammed Muflih - [GitHub](https://github.com/muhammedmuflih)  
-
 ## 📫 Support
 For support, please open an issue on this repository or contact the author directly.
